@@ -354,6 +354,12 @@ def generate_wav(train, volume_percent=300, speed_percent=120, spoken_override=N
 
     audio = AudioSegment.from_file(mp3_path)
 
+    # Resample to 44100 Hz. edge-tts natively outputs 24000 Hz, which plays
+    # fine in software players but many embedded/hardware PA announcement
+    # decoders only support standard rates (44100/48000 etc.) and will
+    # silently refuse to play 24000 Hz audio.
+    audio = audio.set_frame_rate(44100)
+
     # --- trim leading/trailing silence ---
     nonsilent_ranges = detect_nonsilent(audio, min_silence_len=100, silence_thresh=-40)
     if nonsilent_ranges:
@@ -466,6 +472,7 @@ def api_text_to_speech():
         import math
 
         audio = AudioSegment.from_file(mp3_path)
+        audio = audio.set_frame_rate(44100)
 
         nonsilent_ranges = detect_nonsilent(audio, min_silence_len=100, silence_thresh=-40)
         if nonsilent_ranges:
