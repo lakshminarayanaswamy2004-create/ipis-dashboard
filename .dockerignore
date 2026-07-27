@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.git
+.gitignore
+output/*.wav
+output/*.mp3
+*.bat

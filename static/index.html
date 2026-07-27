@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPIS — Train Announcement System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #080E14;
+  --surface:  #0D1821;
+  --card:     #111D29;
+  --border:   #1E3347;
+  --border-hi:#2E4A63;
+  --amber:    #F59E0B;
+  --amber-lo: rgba(245,158,11,0.12);
+  --amber-mid:rgba(245,158,11,0.25);
+  --cyan:     #22D3EE;
+  --cyan-lo:  rgba(34,211,238,0.10);
+  --green:    #10B981;
+  --green-lo: rgba(16,185,129,0.12);
+  --red:      #EF4444;
+  --red-lo:   rgba(239,68,68,0.12);
+  --text:     #E2E8F0;
+  --muted:    #64748B;
+  --dim:      #334155;
+  --mono:     'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 38px; height: 38px;
+  background: var(--amber);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+  box-shadow: 0 0 20px rgba(245,158,11,0.4);
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.brand-sub {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.live-dot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.live-dot::before {
+  content: '';
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+#clock {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 3px;
+  text-shadow: 0 0 20px rgba(245,158,11,0.5);
+}
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: calc(100vh - 64px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+}
+
+.sidebar-section { display: flex; flex-direction: column; gap: 10px; }
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::before {
+  content: '';
+  display: block;
+  width: 3px; height: 12px;
+  background: var(--amber);
+  border-radius: 2px;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-group label {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+.train-input {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.train-input::placeholder { color: var(--dim); }
+.train-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-lo);
+}
+
+.fetch-btn {
+  width: 100%;
+  background: var(--amber);
+  color: #000;
+  border: none;
+  padding: 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: box-shadow .15s, opacity .15s;
+}
+.fetch-btn:hover { box-shadow: 0 0 20px rgba(245,158,11,0.4); }
+.fetch-btn:active { opacity: 0.85; }
+.fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.hint-text {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* slider */
+.slider-group { display: flex; flex-direction: column; gap: 10px; }
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.slider-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(245,158,11,0.6);
+  transition: transform .1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(245,158,11,0.6);
+}
+
+/* toolbar btns in sidebar */
+.action-btns { display: flex; flex-direction: column; gap: 8px; }
+
+.side-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  text-align: left;
+}
+.side-btn:hover { border-color: var(--border-hi); background: #162333; }
+.side-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.side-btn.playing { border-color: var(--green); color: var(--green); }
+.side-btn .btn-icon {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ── MAIN CONTENT ── */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── BOARD AREA ── */
+.board-wrap {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.board-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.board-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.board-meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+/* table */
+.train-table {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table-head {
+  display: grid;
+  grid-template-columns: 120px 1fr 140px 140px 120px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+.train-row {
+  border-bottom: 1px solid var(--border);
+  animation: rowIn .3s ease both;
+}
+.train-row:last-child { border-bottom: none; }
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.row-main {
+  display: grid;
+  grid-template-columns: 120px 1fr 140px 140px 120px;
+  padding: 14px 20px;
+  align-items: center;
+  transition: background .12s;
+}
+.row-main:hover { background: rgba(255,255,255,0.02); }
+
+.train-no {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--amber);
+  text-shadow: 0 0 12px rgba(245,158,11,0.3);
+}
+
+.train-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.name-text {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-btn {
+  width: 24px; height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.edit-btn:hover { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-lo); }
+
+.station-cell {
+  font-size: 13px;
+  color: var(--text);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.station-code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+.audio-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.gen-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--amber-lo);
+  border: 1px solid var(--amber-mid);
+  border-radius: 7px;
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.gen-btn:hover { background: var(--amber-mid); box-shadow: 0 0 12px rgba(245,158,11,0.2); }
+.gen-btn.loading { opacity: 0.5; pointer-events: none; }
+.gen-btn.ready {
+  background: var(--green-lo);
+  border-color: rgba(16,185,129,0.3);
+  color: var(--green);
+}
+
+.dl-btn {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none;
+  font-size: 13px;
+  transition: border-color .12s, color .12s;
+}
+.dl-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* row-error */
+.row-error-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  padding: 14px 20px;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.row-error-no {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--red);
+}
+.row-error-msg {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--red-lo);
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+/* edit panel */
+.edit-panel {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px 20px;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+.edit-panel.open { display: flex; }
+
+.edit-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.edit-field label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.edit-field input {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.edit-field input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px var(--cyan-lo);
+}
+
+.edit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.edit-hint-text {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.edit-actions { display: flex; gap: 8px; }
+.btn-cancel {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .12s;
+}
+.btn-cancel:hover { border-color: var(--border-hi); }
+.btn-save {
+  padding: 8px 16px;
+  background: var(--amber);
+  border: none;
+  border-radius: 7px;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow .12s;
+}
+.btn-save:hover { box-shadow: 0 0 14px rgba(245,158,11,0.4); }
+
+/* empty state */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.empty-icon {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.empty-sub { font-size: 12px; color: var(--muted); }
+
+/* status bar */
+.status-bar {
+  padding: 10px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── TTS SECTION ── */
+.tts-section {
+  border-top: 1px solid var(--border);
+  padding: 24px 28px;
+  background: var(--bg);
+}
+
+.tts-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.tts-badge {
+  padding: 4px 10px;
+  background: var(--cyan-lo);
+  border: 1px solid rgba(34,211,238,0.2);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.tts-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tts-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.tts-textarea {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  outline: none;
+  resize: none;
+  min-height: 64px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.tts-textarea::placeholder { color: var(--dim); }
+.tts-textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px var(--cyan-lo);
+}
+
+.tts-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.tts-gen-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: var(--cyan);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow .15s, opacity .15s;
+  white-space: nowrap;
+}
+.tts-gen-btn:hover { box-shadow: 0 0 20px rgba(34,211,238,0.35); }
+.tts-gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tts-player {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.tts-player.visible { display: flex; }
+
+.tts-play-btn {
+  width: 34px; height: 34px;
+  border-radius: 7px;
+  background: var(--green-lo);
+  border: 1px solid rgba(16,185,129,0.3);
+  color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background .12s;
+}
+.tts-play-btn:hover { background: rgba(16,185,129,0.2); }
+.tts-play-btn.paused {
+  background: var(--amber-lo);
+  border-color: var(--amber-mid);
+  color: var(--amber);
+}
+
+.tts-file-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tts-dl {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none;
+  font-size: 13px;
+  transition: border-color .12s, color .12s;
+}
+.tts-dl:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.tts-status {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  min-height: 14px;
+  font-family: var(--mono);
+}
+.tts-status.ok    { color: var(--green); }
+.tts-status.error { color: var(--red); }
+
+audio { display: none; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
+  .table-head,
+  .row-main { grid-template-columns: 90px 1fr 100px 100px 110px; }
+  .edit-fields { grid-template-columns: 1fr; }
+  .tts-body { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .topbar { padding: 0 16px; }
+  .board-wrap { padding: 16px; }
+  .table-head span:nth-child(3),
+  .station-cell:nth-of-type(1) { display: none; }
+  .table-head,
+  .row-main { grid-template-columns: 80px 1fr 100px 90px; }
+}
+
+/* ── TTS filename input ── */
+.tts-filename-row { margin: 6px 0 8px; }
+.tts-filename-input {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.tts-filename-input::placeholder { color: var(--dim); }
+.tts-filename-input:focus { border-color: var(--cyan); }
+
+/* ── History panel ── */
+.history-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 260px; overflow-y: auto;
+}
+.history-empty { color: var(--dim); font-size: 0.78rem; padding: 4px 0; }
+.history-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  cursor: pointer; transition: background 0.15s;
+  font-size: 0.78rem;
+}
+.history-item:hover { background: rgba(34,211,238,0.08); }
+.history-icon { font-size: 0.85rem; }
+.history-label { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-sub { color: var(--dim); font-size: 0.7rem; white-space: nowrap; }
+.history-dl { color: var(--green); font-size: 0.85rem; text-decoration: none; }
+.history-dl:hover { color: var(--cyan); }
+
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">IR</div>
+    <div>
+      <div class="brand-name">IPIS — Train Announcement System</div>
+      <div class="brand-sub">Integrated Passenger Information</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-dot">System Online</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- Train lookup -->
+    <div class="sidebar-section">
+      <div class="section-label">Train Lookup</div>
+      <div class="input-group">
+        <label for="trainInput">Train number(s)</label>
+        <input id="trainInput" class="train-input" type="text"
+          placeholder="e.g. 12794, 12952" autocomplete="off">
+      </div>
+      <button class="fetch-btn" id="fetchBtn">Fetch Train Info</button>
+      <p class="hint-text">Enter one or more 5-digit train numbers, separated by commas or spaces.</p>
+    </div>
+
+    <!-- Voice settings -->
+    <div class="sidebar-section">
+      <div class="section-label">Voice Settings</div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Speed</span>
+            <span class="slider-val" id="speedValue">120%</span>
+          </div>
+          <input id="speedSlider" type="range" min="70" max="200" step="10" value="120">
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Volume</span>
+            <span class="slider-val" id="volumeValue">300%</span>
+          </div>
+          <input id="volumeSlider" type="range" min="100" max="500" step="25" value="300">
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch actions -->
+    <div class="sidebar-section">
+      <div class="section-label">Batch Actions</div>
+      <div class="action-btns">
+        <button class="side-btn" id="playAllBtn">
+          <span class="btn-icon">▶</span>
+          Play All Announcements
+        </button>
+        <button class="side-btn" id="downloadAllBtn">
+          <span class="btn-icon">⬇</span>
+          Download All as WAV
+        </button>
+      </div>
+    </div>
+
+
+    <!-- History -->
+    <div class="sidebar-section" id="historySection">
+      <div class="section-label">History</div>
+      <div id="historyList" class="history-list"><div class="history-empty">No searches yet.</div></div>
+      <button class="side-btn" id="clearHistoryBtn" style="display:none">🗑 Clear History</button>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- BOARD -->
+    <div class="board-wrap">
+      <div class="board-header-row">
+        <div class="board-title">Train Board</div>
+        <div class="board-meta" id="countText">0 trains loaded</div>
+      </div>
+
+      <div class="train-table">
+        <div class="table-head">
+          <span>Train No.</span>
+          <span>Name</span>
+          <span>Source</span>
+          <span>Destination</span>
+          <span style="text-align:right">Audio</span>
+        </div>
+        <div id="boardBody">
+          <div class="empty-state">
+            <div class="empty-icon">🚆</div>
+            <div class="empty-title">No trains loaded yet</div>
+            <div class="empty-sub">Enter a train number in the sidebar and click Fetch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+      <div class="status-indicator">
+        <span id="statusText">Ready — enter train numbers to begin</span>
+      </div>
+      <span>IPIS v6</span>
+    </div>
+
+    <!-- TTS SECTION -->
+    <div class="tts-section">
+      <div class="tts-header">
+        <div class="tts-badge">New</div>
+        <div class="tts-title">Text to Speech</div>
+      </div>
+
+      <div class="tts-body">
+        <div>
+          <textarea id="ttsInput" class="tts-textarea" rows="2"
+            placeholder="Type any custom announcement text here — e.g. Passengers please note, train 12794 will depart from platform 3..."></textarea>
+          <div class="tts-filename-row">
+            <input id="ttsFileNameInput" class="tts-filename-input" type="text"
+              placeholder="Custom filename (optional, e.g. platform3_announcement)" autocomplete="off">
+          </div>
+          <div class="tts-player" id="ttsPlayer">
+            <button class="tts-play-btn" id="ttsPlayBtn">▶</button>
+            <span class="tts-file-name" id="ttsFileName">—</span>
+            <a class="tts-dl" id="ttsDlBtn" download title="Download WAV">⬇</a>
+          </div>
+          <div class="tts-status" id="ttsStatus"></div>
+        </div>
+        <div class="tts-controls">
+          <button class="tts-gen-btn" id="ttsGenBtn">▶ Generate &amp; Play</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /.layout -->
+
+<script>
+// ── CLOCK ──
+function tick(){
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-IN', {hour12:false});
+}
+tick(); setInterval(tick, 1000);
+
+// ── REFS ──
+const boardBody    = document.getElementById('boardBody');
+const statusText   = document.getElementById('statusText');
+const countText    = document.getElementById('countText');
+const fetchBtn     = document.getElementById('fetchBtn');
+const trainInput   = document.getElementById('trainInput');
+const volumeSlider = document.getElementById('volumeSlider');
+const volumeValue  = document.getElementById('volumeValue');
+const speedSlider  = document.getElementById('speedSlider');
+const speedValue   = document.getElementById('speedValue');
+
+volumeSlider.addEventListener('input', () => volumeValue.textContent = volumeSlider.value + '%');
+speedSlider.addEventListener('input',  () => speedValue.textContent  = speedSlider.value  + '%');
+
+let currentTrains = [];
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── RENDER BOARD ──
+function renderBoard(results){
+  if(!results.length){
+    boardBody.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🚆</div>
+        <div class="empty-title">No trains loaded</div>
+        <div class="empty-sub">Enter a train number in the sidebar and click Fetch.</div>
+      </div>`;
+    countText.textContent = '0 trains loaded';
+    return;
+  }
+
+  boardBody.innerHTML = results.map((t, i) => {
+    if(t.error) return `
+      <div class="train-row" style="animation-delay:${i*0.05}s">
+        <div class="row-error-row">
+          <div class="row-error-no">${esc(t.number)}</div>
+          <div class="row-error-msg">Train not found — ${esc(t.error)}</div>
+        </div>
+      </div>`;
+
+    return `
+      <div class="train-row" id="row-${i}" style="animation-delay:${i*0.05}s">
+        <div class="row-main">
+          <div class="train-no">${esc(t.number)}</div>
+          <div class="train-name-cell">
+            <span class="name-text" id="nameText-${i}">${esc(t.name)}</span>
+            <button class="edit-btn" title="Edit" data-index="${i}">✎</button>
+          </div>
+          <div class="station-cell">${esc(t.source)}</div>
+          <div class="station-cell">${esc(t.destination)}</div>
+          <div class="audio-cell">
+            <button class="gen-btn" data-index="${i}" title="Generate announcement">▶ Play</button>
+            <a class="dl-btn" data-index="${i}" style="display:none" title="Download WAV">⬇</a>
+          </div>
+        </div>
+        <div class="edit-panel" id="editPanel-${i}">
+          <div class="edit-fields">
+            <div class="edit-field">
+              <label>Display name (shown on board)</label>
+              <input type="text" id="editDisplay-${i}" value="${esc(t.name)}">
+            </div>
+            <div class="edit-field">
+              <label>Spoken text (what the voice says)</label>
+              <input type="text" id="editSpoken-${i}" value="${esc(t.spoken_override||'')}"
+                placeholder="Auto-fill on open...">
+            </div>
+          </div>
+          <div class="edit-footer">
+            <span class="edit-hint-text">Fix mispronunciations here. Leave blank to use auto text.</span>
+            <div class="edit-actions">
+              <button class="btn-cancel" data-index="${i}">Cancel</button>
+              <button class="btn-save"   data-index="${i}">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  countText.textContent = `${results.filter(r=>!r.error).length} train(s) loaded`;
+
+  document.querySelectorAll('.gen-btn').forEach(b => b.addEventListener('click', onGenerateClick));
+  document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', onEditClick));
+  document.querySelectorAll('.btn-cancel').forEach(b => b.addEventListener('click', onEditCancel));
+  document.querySelectorAll('.btn-save').forEach(b => b.addEventListener('click', onEditSave));
+}
+
+// ── EDIT ──
+async function onEditClick(e){
+  const idx = e.currentTarget.getAttribute('data-index');
+  const panel = document.getElementById('editPanel-'+idx);
+  const spokenInput = document.getElementById('editSpoken-'+idx);
+  const isOpen = panel.classList.contains('open');
+
+  document.querySelectorAll('.edit-panel.open').forEach(p => p.classList.remove('open'));
+  if(isOpen) return;
+
+  panel.classList.add('open');
+
+  if(!spokenInput.value){
+    const train = currentTrains[idx];
+    try {
+      const resp = await fetch('/api/expand_preview', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name: train.name})
+      });
+      const data = await resp.json();
+      spokenInput.value = data.expanded || train.name;
+      spokenInput.placeholder = 'Type what the voice should say...';
+    } catch(err){}
+  }
+  document.getElementById('editSpoken-'+idx).focus();
+}
+
+function onEditCancel(e){
+  const idx = e.currentTarget.getAttribute('data-index');
+  document.getElementById('editPanel-'+idx).classList.remove('open');
+}
+
+function onEditSave(e){
+  const idx = e.currentTarget.getAttribute('data-index');
+  const newDisplay = document.getElementById('editDisplay-'+idx).value.trim();
+  const newSpoken  = document.getElementById('editSpoken-'+idx).value.trim();
+  if(newDisplay){
+    currentTrains[idx].name = newDisplay;
+    document.getElementById('nameText-'+idx).textContent = newDisplay;
+  }
+  currentTrains[idx].spoken_override = newSpoken;
+  document.getElementById('editPanel-'+idx).classList.remove('open');
+  statusText.textContent = `Saved — click ▶ Play on train ${currentTrains[idx].number} to regenerate audio`;
+}
+
+// ── GENERATE AUDIO ──
+async function onGenerateClick(e){
+  const idx = e.currentTarget.getAttribute('data-index');
+  const train = currentTrains[idx];
+  const btn = e.currentTarget;
+  const dlBtn = document.querySelector(`.dl-btn[data-index="${idx}"]`);
+
+  btn.classList.add('loading');
+  btn.textContent = '⏳';
+  statusText.textContent = `Generating audio for ${train.number}...`;
+
+  try {
+    const resp = await fetch('/api/generate_audio', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        train,
+        volume_percent: parseInt(volumeSlider.value,10),
+        speed_percent:  parseInt(speedSlider.value,10),
+        spoken_override: train.spoken_override || null
+      })
+    });
+    const data = await resp.json();
+    btn.classList.remove('loading');
+
+    if(data.ok){
+      btn.classList.add('ready');
+      btn.innerHTML = '▶ Ready';
+      statusText.textContent = `Playing: ${data.filename}`;
+
+      let audioEl = document.getElementById('player-'+idx);
+      if(!audioEl){
+        audioEl = document.createElement('audio');
+        audioEl.id = 'player-'+idx;
+        document.body.appendChild(audioEl);
+      }
+      const url = data.url + '?t=' + Date.now();
+      audioEl.src = url; audioEl.load(); audioEl.play();
+
+      dlBtn.style.display = 'flex';
+      dlBtn.href = url;
+      dlBtn.setAttribute('download', data.filename);
+      currentTrains[idx]._audioUrl = url;
+      currentTrains[idx]._filename = data.filename;
+      return data;
+    } else {
+      btn.innerHTML = '▶ Play';
+      statusText.textContent = `Error: ${data.error}`;
+    }
+  } catch(err){
+    btn.classList.remove('loading');
+    btn.innerHTML = '▶ Play';
+    statusText.textContent = `Error: ${err.message}`;
+  }
+}
+
+// ── FETCH TRAINS ──
+async function fetchTrains(){
+  const raw = trainInput.value.trim();
+  if(!raw){ statusText.textContent = 'Enter at least one train number.'; return; }
+  fetchBtn.disabled = true;
+  fetchBtn.textContent = 'Fetching...';
+  statusText.textContent = 'Looking up train(s)...';
+  try {
+    const resp = await fetch('/api/lookup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({train_numbers: raw})
+    });
+    const data = await resp.json();
+    currentTrains = data.results;
+    renderBoard(currentTrains);
+    const ok = data.results.filter(r=>!r.error).length;
+    statusText.textContent = `Loaded ${ok} train(s)`;
+    if(ok) addHistory({ type:'search', label: raw, sub: ok+' train(s) found' });
+  } catch(err){
+    statusText.textContent = `Error: ${err.message}`;
+  } finally {
+    fetchBtn.disabled = false;
+    fetchBtn.textContent = 'Fetch Train Info';
+  }
+}
+
+fetchBtn.addEventListener('click', fetchTrains);
+trainInput.addEventListener('keydown', e => { if(e.key==='Enter') fetchTrains(); });
+
+// ── PLAY ALL / DOWNLOAD ALL ──
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function ensureGenerated(idx){
+  if(currentTrains[idx]._audioUrl) return currentTrains[idx];
+  const genBtn = document.querySelector(`.gen-btn[data-index="${idx}"]`);
+  if(genBtn) await onGenerateClick({currentTarget:genBtn});
+  return currentTrains[idx];
+}
+
+document.getElementById('playAllBtn').addEventListener('click', async () => {
+  const valid = currentTrains.filter(t=>!t.error);
+  if(!valid.length){ statusText.textContent='No trains loaded to play'; return; }
+  const btn = document.getElementById('playAllBtn');
+  btn.disabled = true; btn.classList.add('playing');
+  btn.querySelector('.btn-icon').textContent = '⏸';
+
+  for(let i=0; i<currentTrains.length; i++){
+    if(currentTrains[i].error) continue;
+    statusText.textContent = `Playing ${i+1}/${valid.length}: ${currentTrains[i].number}`;
+    await ensureGenerated(i);
+    const el = document.getElementById('player-'+i);
+    if(el) await new Promise(res=>{
+      const done=()=>{el.removeEventListener('ended',done);res();};
+      el.addEventListener('ended',done);
+      el.currentTime=0; el.play();
+    });
+    await sleep(300);
+  }
+  btn.disabled=false; btn.classList.remove('playing');
+  btn.querySelector('.btn-icon').textContent = '▶';
+  statusText.textContent='Done playing all trains';
+});
+
+document.getElementById('downloadAllBtn').addEventListener('click', async ()=>{
+  const valid = currentTrains.filter(t=>!t.error);
+  if(!valid.length){ statusText.textContent='No trains loaded'; return; }
+  const btn = document.getElementById('downloadAllBtn');
+  btn.disabled=true;
+  for(let i=0; i<currentTrains.length; i++){
+    if(currentTrains[i].error) continue;
+    statusText.textContent=`Preparing ${i+1}/${valid.length}: ${currentTrains[i].number}`;
+    const t = await ensureGenerated(i);
+    if(t._audioUrl){
+      const a=document.createElement('a');
+      a.href=t._audioUrl; a.download=t._filename||`${t.number}.wav`;
+      document.body.appendChild(a); a.click(); a.remove();
+      await sleep(400);
+    }
+  }
+  btn.disabled=false;
+  statusText.textContent='Download complete — check your downloads folder';
+});
+
+// ── TEXT TO SPEECH ──
+const ttsInput   = document.getElementById('ttsInput');
+const ttsGenBtn  = document.getElementById('ttsGenBtn');
+const ttsPlayer  = document.getElementById('ttsPlayer');
+const ttsPlayBtn = document.getElementById('ttsPlayBtn');
+const ttsDlBtn   = document.getElementById('ttsDlBtn');
+const ttsFileName= document.getElementById('ttsFileName');
+const ttsStatus  = document.getElementById('ttsStatus');
+let ttsAudio = null, ttsUrl = null;
+
+function setTtsStatus(msg, type=''){
+  ttsStatus.textContent = msg;
+  ttsStatus.className = 'tts-status'+(type?' '+type:'');
+}
+
+ttsGenBtn.addEventListener('click', async ()=>{
+  const text = ttsInput.value.trim();
+  if(!text){ setTtsStatus('Type some text first.','error'); return; }
+  const customName = document.getElementById('ttsFileNameInput').value.trim();
+  ttsGenBtn.disabled=true; ttsGenBtn.textContent='⏳ Generating...';
+  ttsPlayer.classList.remove('visible');
+  setTtsStatus('Generating speech...');
+  try {
+    const resp = await fetch('/api/text_to_speech', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        text,
+        volume_percent: parseInt(volumeSlider.value,10),
+        speed_percent:  parseInt(speedSlider.value,10),
+        custom_filename: customName
+      })
+    });
+    const data = await resp.json();
+    if(data.ok){
+      ttsUrl = data.url+'?t='+Date.now();
+      ttsFileName.textContent = data.filename;
+      ttsDlBtn.href = ttsUrl;
+      ttsDlBtn.setAttribute('download', data.filename);
+      ttsPlayer.classList.add('visible');
+
+      if(!ttsAudio) ttsAudio = new Audio();
+      ttsAudio.src = ttsUrl; ttsAudio.load(); ttsAudio.play();
+      ttsPlayBtn.textContent = '⏸';
+      ttsPlayBtn.classList.remove('paused');
+      ttsAudio.onended = ()=>{ ttsPlayBtn.textContent='▶'; ttsPlayBtn.classList.add('paused'); };
+      setTtsStatus('Generated: '+data.filename, 'ok');
+      addHistory({ type:'tts', label: text.slice(0,40)+(text.length>40?'…':''), filename: data.filename, url: ttsUrl });
+    } else {
+      setTtsStatus('Error: '+(data.error||'Unknown'), 'error');
+    }
+  } catch(err){
+    setTtsStatus('Error: '+err.message,'error');
+  } finally {
+    ttsGenBtn.disabled=false; ttsGenBtn.innerHTML='▶ Generate &amp; Play';
+  }
+});
+
+ttsPlayBtn.addEventListener('click', ()=>{
+  if(!ttsAudio||!ttsUrl) return;
+  if(ttsAudio.paused){
+    ttsAudio.play();
+    ttsPlayBtn.textContent='⏸'; ttsPlayBtn.classList.remove('paused');
+  } else {
+    ttsAudio.pause();
+    ttsPlayBtn.textContent='▶'; ttsPlayBtn.classList.add('paused');
+  }
+});
+
+// ── HISTORY ──
+let searchHistory = [];
+
+function addHistory(entry){
+  entry.time = new Date().toLocaleTimeString('en-IN',{hour12:false});
+  searchHistory.unshift(entry);
+  if(searchHistory.length > 30) searchHistory.pop();
+  renderHistory();
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const clearBtn = document.getElementById('clearHistoryBtn');
+  if(!searchHistory.length){
+    list.innerHTML = '<div class="history-empty">No searches yet.</div>';
+    clearBtn.style.display='none';
+    return;
+  }
+  clearBtn.style.display='';
+  list.innerHTML = searchHistory.map((h,i)=>{
+    const icon = h.type==='tts' ? '🔊' : '🔍';
+    const dlPart = h.url ? `<a class="history-dl" href="${h.url}" download="${h.filename||'audio.wav'}" title="Download">⬇</a>` : '';
+    return `<div class="history-item" onclick="replayHistory(${i})">
+      <span class="history-icon">${icon}</span>
+      <span class="history-label" title="${h.label}">${h.label}</span>
+      ${h.sub ? `<span class="history-sub">${h.sub}</span>` : ''}
+      <span class="history-sub">${h.time}</span>
+      ${dlPart}
+    </div>`;
+  }).join('');
+}
+
+function replayHistory(i){
+  const h = searchHistory[i];
+  if(!h) return;
+  if(h.type==='search'){
+    trainInput.value = h.label;
+    fetchTrains();
+  } else if(h.type==='tts'){
+    ttsInput.value = h.label;
+  }
+}
+
+document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
+  searchHistory = [];
+  renderHistory();
+});
+
+</script>
+</body>
+</html>
