@@ -5,6 +5,7 @@
 import os
 import re
 import json
+import difflib
 import asyncio
 import requests
 from flask import Flask, request, jsonify, send_from_directory
@@ -367,12 +368,24 @@ def _strip_jn(text: str) -> str:
     return text
 
 
+def _fuzzy_match(a: str, b: str, threshold: float = 0.82) -> bool:
+    """True if two station-name strings are the same or close enough to be
+    the same (handles typos/spelling variants like 'Machelipatnam' vs the
+    official 'Machilipatnam', or transliteration differences)."""
+    if not a or not b:
+        return False
+    if a == b or a in b or b in a:
+        return True
+    return difflib.SequenceMatcher(None, a, b).ratio() >= threshold
+
+
 def build_source_dest_filter_words(train) -> set:
     """Build the set of words that represent THIS train's own source and
     destination station - as plain words (e.g. 'TIRUPATI'), with Jn/Junction
     stripped - plus any station code whose full name matches that source or
-    destination, so both 'TPTY' and 'Tirupati' are recognized as the same
-    non-name filler word."""
+    destination (allowing for minor spelling differences), so 'TPTY',
+    'Tirupati', and even a slightly-misspelled variant are all recognized as
+    the same non-name filler word."""
     words = set()
     src = _strip_jn(train.get("source") or "").upper().strip()
     dst = _strip_jn(train.get("destination") or "").upper().strip()
@@ -387,9 +400,7 @@ def build_source_dest_filter_words(train) -> set:
         name_up = _strip_jn(str(name)).upper().strip()
         if not name_up:
             continue
-        if (name_up == src or name_up == dst
-                or (src and (name_up in src or src in name_up))
-                or (dst and (name_up in dst or dst in name_up))):
+        if _fuzzy_match(name_up, src) or _fuzzy_match(name_up, dst):
             words.add(code.upper())
 
     return words
@@ -398,14 +409,16 @@ def build_source_dest_filter_words(train) -> set:
 def has_genuine_name(train) -> bool:
     """True if the train's name field contains at least one real word that
     isn't just a station code, a train-type word (SF/EXP/PASS/etc.), or this
-    train's own source/destination repeated. e.g. 'RAYALASEEMA SF' -> True
-    (Rayalaseema is a genuine name). 'TPTY AMI SF EXP' -> False (every word
-    is just source+destination+type, nothing genuinely named)."""
+    train's own source/destination repeated (allowing for minor spelling
+    differences between data sources). e.g. 'RAYALASEEMA SF' -> True.
+    'MTM BIDR SF EXP' -> False (source+destination+type, nothing genuine)."""
     name = train.get("name") or ""
     if is_train_name_missing(name):
         return False
 
     filter_words = build_source_dest_filter_words(train)
+    src = _strip_jn(train.get("source") or "").upper().strip()
+    dst = _strip_jn(train.get("destination") or "").upper().strip()
 
     for tok in re.split(r"[\s\-/,]+", name.upper()):
         tok = tok.strip(".,")
@@ -416,6 +429,8 @@ def has_genuine_name(train) -> bool:
         if tok in TRAIN_TYPE_EXPANSIONS or tok in TRAIN_TYPE_NO_EXPAND:
             continue
         if tok in filter_words:
+            continue
+        if _fuzzy_match(tok, src) or _fuzzy_match(tok, dst):
             continue
         return True  # found a genuine leftover word
 
