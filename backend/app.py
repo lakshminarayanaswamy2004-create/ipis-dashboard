@@ -66,6 +66,7 @@ TRAIN_TYPE_EXPANSIONS = {
     "PASS": "Passenger",
     "PGR": "Passenger",
     "PASSENGER": "Passenger",
+    "MAIL": "Mail",
     "JNS": "Jan Shatabdi",
     "RAJ": "Rajdhani",
     "RAJDHANI": "Rajdhani",
@@ -81,6 +82,29 @@ TRAIN_TYPE_EXPANSIONS = {
     "VANDE": "Vande",
     "MX": "Mixed",
     "MXD": "Mixed",
+    # --- additional categories ---
+    "VB": "Vande Bharat",
+    "VBE": "Vande Bharat",
+    "TJS": "Tejas",
+    "TEJAS": "Tejas",
+    "GTM": "Gatimaan",
+    "GATIMAAN": "Gatimaan",
+    "HSFR": "Humsafar",
+    "HMSFR": "Humsafar",
+    "HUMSAFAR": "Humsafar",
+    "GARIB": "Garib Rath",
+    "TOURIST": "Tourist",
+    "LUX": "Luxury",
+    "LUXURY": "Luxury",
+    "DD": "Double Decker",
+    "MEMU": "MEMU",
+    "DEMU": "DEMU",
+    "EMU": "EMU",
+    "DMU": "DMU",
+    "MMTS": "MMTS",
+    "LOCAL": "Local",
+    "SUB": "Suburban",
+    "SUBURBAN": "Suburban",
 }
 
 # Words that must NOT be expanded - these are train CATEGORY names in
@@ -278,9 +302,14 @@ def lookup_train_online(train_no: str):
     route = data.get("Route", [])
     source = route[0]["StationName"] if route else data.get("Source", {}).get("Code", "")
     destination = route[-1]["StationName"] if route else data.get("Destination", {}).get("Code", "")
+    # Some responses include a separate category/type field even when
+    # TrainName is missing - grab it so the fallback name builder can use
+    # it (e.g. "SF", "MAIL EXP", "SUPERFAST").
+    type_hint = data.get("Type") or data.get("TrainType") or data.get("train_type") or ""
 
     return {
         "number": train_no,
+        "type_hint": type_hint,
         "name": train_name or "UNKNOWN",
         "source": source or "UNKNOWN",
         "destination": destination or "UNKNOWN",
@@ -321,6 +350,50 @@ def lookup_train(train_no: str):
     return None, erail_err or "Train not found"
 
 
+def is_train_name_missing(name) -> bool:
+    """True if a train's name is blank, None, or a known placeholder value."""
+    if not name:
+        return True
+    return name.strip().upper() in ("", "UNKNOWN", "N/A", "NA", "NONE")
+
+
+def detect_train_categories(text: str):
+    """Scan raw text for known train-type keywords (Superfast, Passenger,
+    Mail, Express, Duronto, Rajdhani, etc. - the same list used to expand
+    names for speech) and return the matches, expanded to full words, in
+    the order they appear, with no duplicates."""
+    if not text:
+        return []
+    found = []
+    seen = set()
+    for tok in re.split(r"[\s\-/,]+", text.upper()):
+        tok = tok.strip(".,")
+        if tok in TRAIN_TYPE_EXPANSIONS:
+            expanded = TRAIN_TYPE_EXPANSIONS[tok]
+            if expanded not in seen:
+                seen.add(expanded)
+                found.append(expanded)
+    return found
+
+
+def build_fallback_name(train) -> str:
+    """Build a spoken name like 'Kacheguda Superfast Express' for a train
+    whose real name is missing/unknown. Uses any category hints available
+    (e.g. a 'type_hint' field from an online API) plus the destination
+    station. If no category can be detected at all, just the destination
+    is announced - nothing is invented that wasn't actually in the data."""
+    hint_text = " ".join([
+        str(train.get("type_hint") or ""),
+        str(train.get("name") or ""),
+    ])
+    categories = detect_train_categories(hint_text)
+    destination = (train.get("destination") or "").strip() or "Unknown Destination"
+    destination = expand_train_name_for_speech(destination)
+    if not categories:
+        return destination
+    return f"{destination} " + " ".join(categories)
+
+
 def build_announcement_text(train, spoken_override=None):
     """Build the spoken text for TTS.
 
@@ -331,6 +404,8 @@ def build_announcement_text(train, spoken_override=None):
     """
     if spoken_override and spoken_override.strip():
         return spoken_override.strip()
+    if is_train_name_missing(train.get('name')):
+        return build_fallback_name(train)
     return expand_train_name_for_speech(train['name'])
 
 
