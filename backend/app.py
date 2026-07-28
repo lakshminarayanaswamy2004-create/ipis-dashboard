@@ -168,10 +168,10 @@ MANUAL_EXTRAS = {
 }
 
 
-def lookup_train_local(train_no: str):
-    """Look up a train in the local offline database (instant, no internet)."""
+def lookup_train_manual(train_no: str):
+    """Check developer-entered manual overrides (MANUAL_EXTRAS dict above).
+    These always win over everything else, since they're an intentional fix."""
     train_no = train_no.strip()
-
     if train_no in MANUAL_EXTRAS:
         e = MANUAL_EXTRAS[train_no]
         return {
@@ -181,6 +181,12 @@ def lookup_train_local(train_no: str):
             "destination": e["destination"],
             "source_mode": "local_manual",
         }
+    return None
+
+
+def lookup_train_local(train_no: str):
+    """Look up a train in the local offline database (instant, no internet)."""
+    train_no = train_no.strip()
 
     rec = TRAIN_DB.get(train_no)
     if rec:
@@ -285,17 +291,27 @@ def lookup_train_online(train_no: str):
 def lookup_train(train_no: str):
     train_no = train_no.strip()
 
-    # 1) try the local offline database first - instant, always available
-    info = lookup_train_local(train_no)
+    # 1) manual developer overrides always win - intentional fixes
+    info = lookup_train_manual(train_no)
     if info:
         return info, None
 
-    # 2) not found locally -> try erail.in's live train-search page
+    # 2) try erail.in's live train-search page next. Routes get extended/
+    #    changed by Indian Railways over time, and the bundled local
+    #    database is just a one-time snapshot, so live data is preferred
+    #    whenever it's reachable.
     info, erail_err = lookup_train_erail(train_no)
     if info:
         return info, None
 
-    # 3) still not found -> try indianrailapi.com if a key is configured
+    # 3) live lookup failed (network hiccup, site down, train not found
+    #    there) -> fall back to the local offline database so the app
+    #    still works instead of failing outright
+    info = lookup_train_local(train_no)
+    if info:
+        return info, None
+
+    # 4) still nothing -> try indianrailapi.com if a key is configured
     if INDIAN_RAIL_API_KEY:
         info, err = lookup_train_online(train_no)
         if info:
