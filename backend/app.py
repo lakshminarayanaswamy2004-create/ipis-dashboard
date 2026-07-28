@@ -179,9 +179,12 @@ def expand_train_name_for_speech(name: str) -> str:
     result = "".join(out_tokens)
     # collapse any double spaces introduced by the rejoin
     result = re.sub(r"\s+", " ", result).strip()
-    # Expand "Jn" suffix (meaning Junction) that appears after station names
-    # e.g. "Ernakulam Jn" -> "Ernakulam Junction"
-    result = re.sub(r"\bJn\b", "Junction", result)
+    # Drop "Jn" (Junction) entirely - it's not spoken in the announcement.
+    # Also strip the literal word "Junction" if it's already part of a
+    # station's full name in the database (e.g. "Nainpur Junction").
+    result = re.sub(r"\bJn\b\.?", "", result)
+    result = re.sub(r"\bJunction\b", "", result, flags=re.IGNORECASE)
+    result = re.sub(r"\s+", " ", result).strip()
     return result
 
 
@@ -357,6 +360,68 @@ def is_train_name_missing(name) -> bool:
     return name.strip().upper() in ("", "UNKNOWN", "N/A", "NA", "NONE")
 
 
+def _strip_jn(text: str) -> str:
+    """Remove Jn/Junction from a piece of text, same as the speech expander."""
+    text = re.sub(r"\bJn\b\.?", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bJunction\b", "", text, flags=re.IGNORECASE)
+    return text
+
+
+def build_source_dest_filter_words(train) -> set:
+    """Build the set of words that represent THIS train's own source and
+    destination station - as plain words (e.g. 'TIRUPATI'), with Jn/Junction
+    stripped - plus any station code whose full name matches that source or
+    destination, so both 'TPTY' and 'Tirupati' are recognized as the same
+    non-name filler word."""
+    words = set()
+    src = _strip_jn(train.get("source") or "").upper().strip()
+    dst = _strip_jn(train.get("destination") or "").upper().strip()
+
+    for text in (src, dst):
+        for w in re.split(r"[\s\-/,]+", text):
+            w = w.strip(".,")
+            if w:
+                words.add(w)
+
+    for code, name in STATION_DB.items():
+        name_up = _strip_jn(str(name)).upper().strip()
+        if not name_up:
+            continue
+        if (name_up == src or name_up == dst
+                or (src and (name_up in src or src in name_up))
+                or (dst and (name_up in dst or dst in name_up))):
+            words.add(code.upper())
+
+    return words
+
+
+def has_genuine_name(train) -> bool:
+    """True if the train's name field contains at least one real word that
+    isn't just a station code, a train-type word (SF/EXP/PASS/etc.), or this
+    train's own source/destination repeated. e.g. 'RAYALASEEMA SF' -> True
+    (Rayalaseema is a genuine name). 'TPTY AMI SF EXP' -> False (every word
+    is just source+destination+type, nothing genuinely named)."""
+    name = train.get("name") or ""
+    if is_train_name_missing(name):
+        return False
+
+    filter_words = build_source_dest_filter_words(train)
+
+    for tok in re.split(r"[\s\-/,]+", name.upper()):
+        tok = tok.strip(".,")
+        if not tok:
+            continue
+        if tok in ("JN", "JUNCTION"):
+            continue
+        if tok in TRAIN_TYPE_EXPANSIONS or tok in TRAIN_TYPE_NO_EXPAND:
+            continue
+        if tok in filter_words:
+            continue
+        return True  # found a genuine leftover word
+
+    return False
+
+
 def detect_train_categories(text: str):
     """Scan raw text for known train-type keywords (Superfast, Passenger,
     Mail, Express, Duronto, Rajdhani, etc. - the same list used to expand
@@ -404,7 +469,7 @@ def build_announcement_text(train, spoken_override=None):
     """
     if spoken_override and spoken_override.strip():
         return spoken_override.strip()
-    if is_train_name_missing(train.get('name')):
+    if is_train_name_missing(train.get('name')) or not has_genuine_name(train):
         return build_fallback_name(train)
     return expand_train_name_for_speech(train['name'])
 
